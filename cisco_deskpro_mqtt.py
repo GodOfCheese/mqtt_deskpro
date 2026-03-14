@@ -174,7 +174,8 @@ def publish_status(client: mqtt.Client, status: dict[str, Any]) -> None:
         state_topic = f"{CONFIG.topic_root}/{uid}/state"
         value = status.get(key, "unavailable")
         client.publish(state_topic, str(value) if value is not None else "unavailable", retain=True)
-    log.info("Published status: noise=%s sound=%s people=%s room_in_use=%s temp=%s humidity=%s",
+        pass
+    log.debug("Published status: noise=%s sound=%s people=%s room_in_use=%s temp=%s humidity=%s",
              status.get("ambient_noise_level"), status.get("sound_level"),
              status.get("people_count"), status.get("room_in_use"),
              status.get("ambient_temperature"), status.get("relative_humidity"))
