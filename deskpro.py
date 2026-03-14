@@ -133,10 +133,11 @@ class Deskpro:
         updates the XML from the Deskpro, then turns it into
         a dictionary of stats.
         """
-        xml = self.fetchStatus()
+        xml_bytes = self.fetchStatus()
         #
         # for now we just pull the statii into a status dict.
         # 
+        xml = xml_bytes.decode("utf-8")
         self.status = Deskpro.Statii.ToStatus(xml)
         return
     pass
