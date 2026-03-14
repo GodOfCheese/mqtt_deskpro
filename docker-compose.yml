@@ -1,0 +1,38 @@
+services:
+  deskpro-mqtt-bridge:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cisco_deskpro_mqtt_bridge
+    environment:
+      # Connection settings
+      DESKPRO_HOST: "cisco.deskpro" # replace this with yours
+      DESKPRO_VERIFY_SSL: "false"   # Deskpro uses a self-signed cert, so we disable SSL verification. Set to "true" if you have a valid cert.  This will also reduce logging spam
+      POLL_INTERVAL: "1" # you want this very small to get near real-time updates, but be mindful of the load on the Deskpro.  
+      # 1 second seems fine in my testing, but just in case...
+
+      # DO NOT USE ADMIN CREDS.  
+      # Create a new user with read-only access to the API and use those creds here.  
+      # Using admin creds is overkill and exposes your system to unnecessary risk if the container is compromised.
+
+      # recommend doing this in the environment, but you could edit them here...
+      # DESKPRO_USER: ${DESKPRO_USER? Set the DESKPRO_USER environment variable to the username for the read-only user.}
+      # DESKPRO_PASS: ${DESKPRO_PASS? Set the DESKPRO_PASS environment variable to the password for the read-only user.}
+
+      # MQTT side.  
+      MQTT_HOST: "localhost" # replace this with your MQTT broker's IP. 
+      MQTT_PORT: "1883"
+      MQTT_USER: ""
+      MQTT_PASS: ""
+      MQTT_TLS: "false"
+
+      # Bridge settings
+      DEVICE_NAME: "Cisco Desk Pro"
+      DEVICE_ID: "cisco_deskpro_1"
+    restart: unless-stopped
+    network_mode: host
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
