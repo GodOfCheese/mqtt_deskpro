@@ -13,7 +13,7 @@ from deskpro import Deskpro, DeskproError
 IPNUMBER="192.168.1.100"
 DEFAULTUSERNAME="some user"
 DEFAULTPASSWORD="some password"
-EXAMPLE_XML_PATH = os.path.join( Path(__file__).parent.parent, "example.xml")
+EXAMPLE_XML_PATH = os.path.join( Path(__file__).parent, "example.xml")
 
 
 def load_example_xml_bytes() -> bytes:
