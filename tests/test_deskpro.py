@@ -304,7 +304,7 @@ class TestStatiiGettext(unittest.TestCase):
 
     def test_gettext_valid_path(self):
         """gettext should return text for valid path"""
-        result = self.statii.gettext("AmbientNoise/Level/A")
+        result = self.statii.gettext("RoomAnalytics/AmbientNoise/Level/A")
         self.assertEqual(result, "32")
 
     def test_gettext_invalid_path_returns_none(self):
@@ -314,12 +314,12 @@ class TestStatiiGettext(unittest.TestCase):
 
     def test_gettext_sound_level(self):
         """gettext should return SoundLevel correctly"""
-        result = self.statii.gettext("Sound/Level/A")
+        result = self.statii.gettext("RoomAnalytics/Sound/Level/A")
         self.assertEqual(result, "41")
 
     def test_gettext_room_in_use(self):
         """gettext should return RoomInUse correctly"""
-        result = self.statii.gettext("RoomInUse")
+        result = self.statii.gettext("RoomAnalytics/RoomInUse")
         self.assertEqual(result, "True")
 
 
