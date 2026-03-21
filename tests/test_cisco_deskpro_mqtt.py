@@ -548,7 +548,7 @@ class TestBuildMqttClient(unittest.TestCase):
     @patch("cisco_deskpro_mqtt.mqtt.Client")
     @patch("cisco_deskpro_mqtt.CONFIG")
     def test_mqtt_on_connect_callback_success(self, mock_config, mock_mqtt_class):
-        """MQTT on_connect callback should publish online and log on success (rc=0)"""
+        """MQTT on_connect callback should publish online and log on success"""
         mock_config.device_id = "test_device"
         mock_config.topic_root = "homeassistant/sensor/test_device"
         mock_config.mqtt_username = None
@@ -562,9 +562,12 @@ class TestBuildMqttClient(unittest.TestCase):
         with patch("cisco_deskpro_mqtt.log") as mock_log:
             bridge.build_mqtt_client()
             
-            # Get the on_connect callback and call it
+            # Get the on_connect callback and call it with success
             on_connect_cb = mock_client_instance.on_connect
-            on_connect_cb(mock_client_instance, None, {}, 0)
+            # Create a mock reason_code with is_success() method
+            mock_reason_code = MagicMock()
+            mock_reason_code.is_failure = False
+            on_connect_cb(mock_client_instance, None, {}, mock_reason_code, None)
             
             # Should publish online and log success
             mock_client_instance.publish.assert_called_once()
@@ -574,7 +577,7 @@ class TestBuildMqttClient(unittest.TestCase):
     @patch("cisco_deskpro_mqtt.mqtt.Client")
     @patch("cisco_deskpro_mqtt.CONFIG")
     def test_mqtt_on_connect_callback_failure(self, mock_config, mock_mqtt_class):
-        """MQTT on_connect callback should log error on failure (rc != 0)"""
+        """MQTT on_connect callback should log error on failure"""
         mock_config.device_id = "test_device"
         mock_config.topic_root = "homeassistant/sensor/test_device"
         mock_config.mqtt_username = None
@@ -588,7 +591,10 @@ class TestBuildMqttClient(unittest.TestCase):
             
             # Get the on_connect callback and call it with error code
             on_connect_cb = mock_client_instance.on_connect
-            on_connect_cb(mock_client_instance, None, {}, 1)
+            # Create a mock reason_code with is_success() returning False
+            mock_reason_code = MagicMock()
+            mock_reason_code.is_failure = True
+            on_connect_cb(mock_client_instance, None, {}, mock_reason_code, None)
             
             # Should not publish, should log error
             mock_log.error.assert_called()

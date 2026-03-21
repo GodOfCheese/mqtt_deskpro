@@ -212,7 +212,7 @@ def publish_status(client: mqtt.Client, status: dict[str, Any]) -> None:
 # ---------------------------------------------------------------------------
 
 def build_mqtt_client() -> mqtt.Client:
-    client = mqtt.Client(client_id=f"{CONFIG.device_id}_bridge", clean_session=True)
+    client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=f"{CONFIG.device_id}_bridge") 
 
     if CONFIG.mqtt_username:
         client.username_pw_set(CONFIG.mqtt_username, CONFIG.mqtt_password)
@@ -223,16 +223,16 @@ def build_mqtt_client() -> mqtt.Client:
     lwt_topic = f"{CONFIG.topic_root}/availability"
     client.will_set(lwt_topic, "offline", retain=True)
 
-    def on_connect(c, userdata, flags, rc):
-        if rc == 0:
+    def on_connect(c, userdata, connect_flags, reason_code, properties):
+        if not reason_code.is_failure:
             log.info("Connected to MQTT broker at %s:%s", CONFIG.mqtt_host, CONFIG.mqtt_port)
             c.publish(lwt_topic, "online", retain=True)
         else:
-            log.error("MQTT connect failed, return code %d", rc)
+            log.error("MQTT connect failed, reason code: %s", reason_code)
 
-    def on_disconnect(c, userdata, rc):
-        if rc != 0:
-            log.warning("Unexpected MQTT disconnect (rc=%d), will retry...", rc)
+    def on_disconnect(c, userdata, disconnect_flags, reason_code, properties):
+        if reason_code != 0:
+            log.warning("Unexpected MQTT disconnect (reason code=%s), will retry...", reason_code)
 
     client.on_connect = on_connect
     client.on_disconnect = on_disconnect
