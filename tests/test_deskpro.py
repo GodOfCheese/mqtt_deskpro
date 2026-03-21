@@ -16,11 +16,15 @@ DEFAULTPASSWORD="some password"
 EXAMPLE_XML_PATH = os.path.join( Path(__file__).parent.parent, "example.xml")
 
 
-def load_example_xml() -> str:
+def load_example_xml_bytes() -> bytes:
     """Load and return the contents of example.xml as bytes"""
-    with open(EXAMPLE_XML_PATH, "r") as f:
+    with open(EXAMPLE_XML_PATH, "rb") as f:
         return f.read()
 
+def load_example_xml() -> str:
+    """Load and return the contents of example.xml as a string"""
+    with open(EXAMPLE_XML_PATH, "r", encoding="utf-8") as f:
+        return f.read()
 
 class TestDeskproError(unittest.TestCase):
     """Test the DeskproError exception class"""
@@ -154,7 +158,7 @@ class TestDeskproUpdate(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures"""
         self.deskpro = Deskpro(IPNUMBER, DEFAULTUSERNAME, DEFAULTPASSWORD)
-        self.valid_xml = load_example_xml()
+        self.valid_xml = load_example_xml_bytes()
 
     def test_update_fetches_and_parses(self):
         """update should fetch XML and parse it into status"""

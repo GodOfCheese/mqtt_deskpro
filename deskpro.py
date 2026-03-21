@@ -27,13 +27,17 @@ class Deskpro:
         password,
         certverify=False, # Deskpros default to a self-signed cert
     ):
+        assert hostname is not None, "hostname is required"
+        assert username is not None, "username is required"
+        assert password is not None, "password is required"
+        
         self.url = f"https://{hostname}/status.xml"
         self.auth = HTTPBasicAuth(username=username, password=password)
         self.certverify = certverify
         self.status = Deskpro.Statii.DefaultStatus()
         self.session = requests.Session()
 
-    def fetchStatus(self):
+    def fetchStatus(self) -> bytes:
         """
         actually retrieves the statusxml from the device.
         Separated for testing convenience
@@ -54,7 +58,13 @@ class Deskpro:
         There are likely libraries for this specifically
         So when I find them, I'll switch to using those.
         """
-        def __init__(self, xml):
+        
+        # def __init__( self, xml:bytes):
+        #    self.__init__(xml.decode("utf-8"))
+            
+        def __init__(self, xml:str):
+            
+            assert isinstance(xml, str), "xml must be a string.  If you have bytes, decode it first."
             self.root = ET.fromstring(xml)
             self.ra = self.get("RoomAnalytics", start=self.root)
 
@@ -117,6 +127,14 @@ class Deskpro:
                 ret[stat] = self.gettext(path)
 
             return ret
+        
+        @classmethod
+        def BytesToStatus( cls, xml: bytes) -> dict[str, Optional[str]]:
+             """
+             Convenient wrapper for turning the XML BYTES into
+             a dictionary.
+             """
+             return cls.ToStatus(xml.decode("utf-8"))
 
         @classmethod
         def ToStatus(cls, xml: str) -> dict[str, str]:
@@ -133,12 +151,12 @@ class Deskpro:
         updates the XML from the Deskpro, then turns it into
         a dictionary of stats.
         """
-        xml_bytes = self.fetchStatus()
+        xml_bytes:bytes = self.fetchStatus()
         #
         # for now we just pull the statii into a status dict.
         # 
-        xml = xml_bytes.decode("utf-8")
-        self.status = Deskpro.Statii.ToStatus(xml)
+
+        self.status = Deskpro.Statii.BytesToStatus(xml_bytes)
         return
     pass
 
