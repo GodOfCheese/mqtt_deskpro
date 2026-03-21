@@ -68,7 +68,7 @@ class Deskpro:
 
         def gettext(self, xmlpath) -> Optional[str]:
             try:
-                return self.get(xmlpath, start=self.ra).text
+                return self.get(xmlpath, start=self.root).text
             except DeskproError:
                 return None
 
@@ -88,15 +88,16 @@ class Deskpro:
 
         STATUSMAP = {
             # looks like AmbientNoiseLevel is the estimated noise level all the time
-            "AmbientNoiseLevel": "AmbientNoise/Level/A",
+            "AmbientNoiseLevel": "RoomAnalytics/AmbientNoise/Level/A",
 
             # SoundLevel seems to be the CURRENT noise level
-            "SoundLevel": "Sound/Level/A",
-            "PeopleCount": "PeopleCount/Current",
-            "RoomInUse": "RoomInUse",
-            "T3AlarmDetected": "T3Alarm/Detected",
-            "AmbientTemperature": "AmbientTemperature",
-            "RelativeHumidity": "RelativeHumidity",
+            "SoundLevel": "RoomAnalytics/Sound/Level/A",
+            "PeopleCount": "RoomAnalytics/PeopleCount/Current",
+            "RoomInUse": "RoomAnalytics/RoomInUse",
+            "T3AlarmDetected": "RoomAnalytics/T3Alarm/Detected",
+            "AmbientTemperature": "RoomAnalytics/AmbientTemperature",
+            "RelativeHumidity": "RoomAnalytics/RelativeHumidity",
+            "StandbyState": "Standby/State"
         }
 
         @classmethod
