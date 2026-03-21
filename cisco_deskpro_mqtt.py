@@ -93,32 +93,47 @@ def get_device_status() -> dict[str, Any]:
     Poll the Desk Pro and return its room analytics status.
     """
     status: dict[str, Any] = {}
+    
+    # First, initialize the status with "unavailable" to ensure all keys are present even if fetching fails
+    for sensor in SENSORS:
+        status[sensor.key] = "unavailable"
+        
+    # now fetch the real data, and overwrite the "unavailable" values if successful
 
     try:
         DESKPRO_CLIENT.update()
-        data = DESKPRO_CLIENT.status
-
-        # Map Deskpro data to our status dict
-        status["ambient_noise_level"] = data.get("AmbientNoiseLevel")
-        status["sound_level"] = data.get("SoundLevel")
-        status["people_count"] = data.get("PeopleCount")
-        status["room_in_use"] = data.get("RoomInUse")
-        status["t3_alarm_detected"] = data.get("T3AlarmDetected")
-        status["ambient_temperature"] = data.get("AmbientTemperature")
-        status["relative_humidity"] = data.get("RelativeHumidity")
-
+        data = DESKPRO_CLIENT.status        
     except DeskproError as e:
         log.error("Failed to fetch Deskpro status: %s", e)
+        data = None
+        
+        
+    if data is not None:
+        
+        # Map Deskpro data to our status dict based on SENSORS configuration
+        
+        for sensor in SENSORS:
+            status[sensor.key] = data.get(sensor.deskpro_key, "unavailable")
+            pass
+        
+        #status["ambient_noise_level"] = data.get("AmbientNoiseLevel")
+        #status["sound_level"] = data.get("SoundLevel")
+        #status["people_count"] = data.get("PeopleCount")
+        #status["room_in_use"] = data.get("RoomInUse")
+        #status["t3_alarm_detected"] = data.get("T3AlarmDetected")
+        #status["ambient_temperature"] = data.get("AmbientTemperature")
+        #status["relative_humidity"] = data.get("RelativeHumidity")
+    
         # Return unavailable status on error
-        status = {
-            "ambient_noise_level": "unavailable",
-            "sound_level": "unavailable",
-            "people_count": "unavailable",
-            "room_in_use": "unavailable",
-            "t3_alarm_detected": "unavailable",
-            "ambient_temperature": "unavailable",
-            "relative_humidity": "unavailable",
-        }
+        #status = {
+        #    "ambient_noise_level": "unavailable",
+        #    "sound_level": "unavailable",
+        #    "people_count": "unavailable",
+        #    "room_in_use": "unavailable",
+        #    "t3_alarm_detected": "unavailable",
+        #    "ambient_temperature": "unavailable",
+        #    "relative_humidity": "unavailable",
+        #}
 
     return status
 
@@ -134,45 +149,56 @@ DEVICE_INFO_TEMPLATE = {
     "model": "Desk Pro",
 }
 
-# Each sensor: (unique_id_suffix, friendly_name, value_key, icon, device_class, unit)
-SENSORS = [
-    ("ambient_noise_level", "Ambient Noise Level",  "ambient_noise_level",  "mdi:volume-mute",    None, "dB"),
-    ("sound_level",         "Sound Level",          "sound_level",          "mdi:volume-high",    None, "dB"),
-    ("people_count",        "People Count",         "people_count",         "mdi:account-multiple", None, None),
-    ("room_in_use",         "Room In Use",          "room_in_use",          "mdi:door-open",      None, None),
-    ("t3_alarm_detected",   "T3 Alarm Detected",    "t3_alarm_detected",    "mdi:alarm",          None, None),
-    ("ambient_temperature", "Ambient Temperature",  "ambient_temperature",  "mdi:thermometer",    "temperature", "°C"),
-    ("relative_humidity",   "Relative Humidity",    "relative_humidity",    "mdi:water-percent",  "humidity", "%"),
+
+@dataclass
+class Sensor:
+    key: str
+    name: str
+    icon: str
+    deskpro_key: str
+    device_class: Optional[str] = None
+    unit: Optional[str] = None
+
+
+SENSORS: list[Sensor] = [
+    Sensor("ambient_noise_level", "Ambient Noise Level",  "mdi:volume-mute",      "AmbientNoiseLevel",  unit="dB"),
+    Sensor("sound_level",         "Sound Level",          "mdi:volume-high",      "SoundLevel",         unit="dB"),
+    Sensor("people_count",        "People Count",         "mdi:account-multiple", "PeopleCount"),
+    Sensor("room_in_use",         "Room In Use",          "mdi:door-open",        "RoomInUse"),
+    Sensor("t3_alarm_detected",   "T3 Alarm Detected",    "mdi:alarm",            "T3AlarmDetected"),
+    Sensor("ambient_temperature", "Ambient Temperature",  "mdi:thermometer",      "AmbientTemperature", device_class="temperature", unit="°C"),
+    Sensor("relative_humidity",   "Relative Humidity",    "mdi:water-percent",    "RelativeHumidity",   device_class="humidity",    unit="%"),
+    Sensor("standby_state",       "Standby State",        "mdi:power-standby",    "StandbyState"),
 ]
 
 
 def publish_discovery(client: mqtt.Client, status: dict[str, Any]) -> None:
     """Publish Home Assistant MQTT discovery config for each sensor."""
-    for uid, name, key, icon, device_class, unit in SENSORS:
-        state_topic = f"{CONFIG.topic_root}/{uid}/state"
-        config_topic = f"{CONFIG.discovery_prefix}/sensor/{CONFIG.device_id}/{uid}/config"
+    for sensor in SENSORS:
+        state_topic = f"{CONFIG.topic_root}/{sensor.key}/state"
+        config_topic = f"{CONFIG.discovery_prefix}/sensor/{CONFIG.device_id}/{sensor.key}/config"
 
         payload: dict[str, Any] = {
-            "unique_id": f"{CONFIG.device_id}_{uid}",
-            "name": name,
+            "unique_id": f"{CONFIG.device_id}_{sensor.key}",
+            "name": sensor.name,
             "state_topic": state_topic,
-            "icon": icon,
+            "icon": sensor.icon,
             "device": DEVICE_INFO_TEMPLATE,
         }
-        if device_class:
-            payload["device_class"] = device_class
-        if unit:
-            payload["unit_of_measurement"] = unit
+        if sensor.device_class:
+            payload["device_class"] = sensor.device_class
+        if sensor.unit:
+            payload["unit_of_measurement"] = sensor.unit
 
         client.publish(config_topic, json.dumps(payload), retain=True)
-        log.debug("Published discovery for %s", uid)
+        log.debug("Published discovery for %s", sensor.key)
 
 
 def publish_status(client: mqtt.Client, status: dict[str, Any]) -> None:
     """Publish current values for all sensors."""
-    for uid, _, key, _, _, _ in SENSORS:
-        state_topic = f"{CONFIG.topic_root}/{uid}/state"
-        value = status.get(key, "unavailable")
+    for sensor in SENSORS:
+        state_topic = f"{CONFIG.topic_root}/{sensor.key}/state"
+        value = status.get(sensor.key, "unavailable")
         client.publish(state_topic, str(value) if value is not None else "unavailable", retain=True)
         pass
     log.debug("Published status: noise=%s sound=%s people=%s room_in_use=%s temp=%s humidity=%s",
