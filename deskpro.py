@@ -37,7 +37,7 @@ class Deskpro:
         self.status = Deskpro.Statii.DefaultStatus()
         self.session = requests.Session()
 
-    def fetchStatus(self) -> bytes:
+    def fetchStatus(self) -> str:
         """
         actually retrieves the statusxml from the device.
         Separated for testing convenience
@@ -48,9 +48,10 @@ class Deskpro:
 
         if response.content is None:
             raise DeskproError(f"No content in response from {self.url}")
-
-        return response.content
-
+        
+        assert response.content is not None, "response.content should not be None here, but it is.  This is a sanity check to satisfy the type checker."
+        return response.content.decode("utf-8")
+    
     class Statii:
         """
         convenience library to simplify parsing the status data
@@ -58,21 +59,12 @@ class Deskpro:
         There are likely libraries for this specifically
         So when I find them, I'll switch to using those.
         """
-        
-        # def __init__( self, xml:bytes):
-        #    self.__init__(xml.decode("utf-8"))
             
         def __init__(self, xml:str):
             
             assert isinstance(xml, str), "xml must be a string.  If you have bytes, decode it first."
             self.root = ET.fromstring(xml)
             self.ra = self.get("RoomAnalytics", start=self.root)
-
-        @staticmethod
-        def dumpET(et):
-            # this is for debugging.
-            for child in et:
-                print(child.tag, child.attrib)
 
         def gettext(self, xmlpath) -> Optional[str]:
             try:
@@ -127,14 +119,6 @@ class Deskpro:
                 ret[stat] = self.gettext(path)
 
             return ret
-        
-        @classmethod
-        def BytesToStatus( cls, xml: bytes) -> dict[str, Optional[str]]:
-             """
-             Convenient wrapper for turning the XML BYTES into
-             a dictionary.
-             """
-             return cls.ToStatus(xml.decode("utf-8"))
 
         @classmethod
         def ToStatus(cls, xml: str) -> dict[str, str]:
@@ -151,12 +135,12 @@ class Deskpro:
         updates the XML from the Deskpro, then turns it into
         a dictionary of stats.
         """
-        xml_bytes:bytes = self.fetchStatus()
+        xml_string = self.fetchStatus()
         #
         # for now we just pull the statii into a status dict.
         # 
 
-        self.status = Deskpro.Statii.BytesToStatus(xml_bytes)
+        self.status = Deskpro.Statii.ToStatus(xml_string)
         return
     pass
 

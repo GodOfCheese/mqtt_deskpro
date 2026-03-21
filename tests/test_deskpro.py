@@ -17,14 +17,20 @@ EXAMPLE_XML_PATH = os.path.join( Path(__file__).parent.parent, "example.xml")
 
 
 def load_example_xml_bytes() -> bytes:
-    """Load and return the contents of example.xml as bytes"""
+    """
+    Load and return the contents of example.xml as bytes
+    Use this when you want to test fetchStatus by mocking session.get(), since it returns bytes.
+    """
     with open(EXAMPLE_XML_PATH, "rb") as f:
         return f.read()
 
 def load_example_xml() -> str:
-    """Load and return the contents of example.xml as a string"""
-    with open(EXAMPLE_XML_PATH, "r", encoding="utf-8") as f:
-        return f.read()
+    """
+    Load and return the contents of example.xml as a string
+    Use this when you want to test anything other than fetchStatus, because everything else uses strings
+    """
+    b = load_example_xml_bytes()
+    return b.decode("utf-8")
 
 class TestDeskproError(unittest.TestCase):
     """Test the DeskproError exception class"""
@@ -79,6 +85,7 @@ class TestDeskproFetchStatus(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures"""
         self.deskpro = Deskpro(IPNUMBER, DEFAULTUSERNAME, DEFAULTPASSWORD)
+        self.valid_xml_bytes = load_example_xml_bytes()
         self.valid_xml = load_example_xml()
 
     def test_fetchstatus_success(self):
@@ -86,7 +93,7 @@ class TestDeskproFetchStatus(unittest.TestCase):
         with patch.object(self.deskpro.session, "get") as mock_get:
             mock_response = Mock()
             mock_response.status_code = 200
-            mock_response.content = self.valid_xml
+            mock_response.content = self.valid_xml_bytes
             mock_get.return_value = mock_response
 
             result = self.deskpro.fetchStatus()
@@ -97,7 +104,7 @@ class TestDeskproFetchStatus(unittest.TestCase):
         with patch.object(self.deskpro.session, "get") as mock_get:
             mock_response = Mock()
             mock_response.status_code = 200
-            mock_response.content = self.valid_xml
+            mock_response.content = self.valid_xml_bytes
             mock_get.return_value = mock_response
 
             self.deskpro.fetchStatus()
@@ -149,7 +156,7 @@ class TestDeskproFetchStatus(unittest.TestCase):
             mock_get.return_value = mock_response
 
             result = self.deskpro.fetchStatus()
-            self.assertEqual(result, b"")
+            self.assertEqual(result, "")
 
 
 class TestDeskproUpdate(unittest.TestCase):
@@ -158,7 +165,7 @@ class TestDeskproUpdate(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures"""
         self.deskpro = Deskpro(IPNUMBER, DEFAULTUSERNAME, DEFAULTPASSWORD)
-        self.valid_xml = load_example_xml_bytes()
+        self.valid_xml = load_example_xml()
 
     def test_update_fetches_and_parses(self):
         """update should fetch XML and parse it into status"""
