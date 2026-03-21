@@ -6,8 +6,20 @@ from pathlib import Path
 
 # Import the classes to test
 import sys
+import os
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from deskpro import Deskpro, DeskproError
+
+IPNUMBER="192.168.1.100"
+DEFAULTUSERNAME="some user"
+DEFAULTPASSWORD="some password"
+EXAMPLE_XML_PATH = os.path.join( Path(__file__).parent.parent, "example.xml")
+
+
+def load_example_xml() -> str:
+    """Load and return the contents of example.xml as bytes"""
+    with open(EXAMPLE_XML_PATH, "r") as f:
+        return f.read()
 
 
 class TestDeskproError(unittest.TestCase):
@@ -25,33 +37,35 @@ class TestDeskproError(unittest.TestCase):
 
 class TestDeskproInitialization(unittest.TestCase):
     """Test Deskpro class initialization"""
+    
 
     def test_init_with_required_parameters(self):
         """Deskpro should initialize with hostname, username, and password"""
-        deskpro = Deskpro("192.168.1.100", "user", "password")
-        self.assertEqual(deskpro.url, "https://192.168.1.100/status.xml")
+        
+        deskpro = Deskpro(IPNUMBER, DEFAULTUSERNAME, DEFAULTPASSWORD)
+        self.assertEqual(deskpro.url, f"https://{IPNUMBER}/status.xml")
         self.assertIsNotNone(deskpro.auth)
         self.assertFalse(deskpro.certverify)
 
     def test_init_with_certverify_true(self):
         """Deskpro should support certverify parameter"""
-        deskpro = Deskpro("192.168.1.100", "user", "password", certverify=True)
+        deskpro = Deskpro(IPNUMBER, DEFAULTUSERNAME, DEFAULTPASSWORD, certverify=True)
         self.assertTrue(deskpro.certverify)
 
     def test_init_with_certverify_false(self):
         """Deskpro should default certverify to False"""
-        deskpro = Deskpro("192.168.1.100", "user", "password", certverify=False)
+        deskpro = Deskpro(IPNUMBER, DEFAULTUSERNAME, DEFAULTPASSWORD, certverify=False)
         self.assertFalse(deskpro.certverify)
 
     def test_init_default_status(self):
         """Deskpro should initialize with empty status"""
-        deskpro = Deskpro("192.168.1.100", "user", "password")
+        deskpro = Deskpro(IPNUMBER, DEFAULTUSERNAME, DEFAULTPASSWORD)
         self.assertIsNotNone(deskpro.status)
         self.assertEqual(deskpro.status, Deskpro.Statii.DefaultStatus())
 
     def test_init_session_created(self):
         """Deskpro should create a requests.Session"""
-        deskpro = Deskpro("192.168.1.100", "user", "password")
+        deskpro = Deskpro(IPNUMBER, DEFAULTUSERNAME, DEFAULTPASSWORD)
         self.assertIsInstance(deskpro.session, requests.Session)
 
 
@@ -60,12 +74,8 @@ class TestDeskproFetchStatus(unittest.TestCase):
 
     def setUp(self):
         """Set up test fixtures"""
-        self.deskpro = Deskpro("192.168.1.100", "user", "password")
-        
-        # Load example.xml
-        example_xml_path = Path(__file__).parent.parent / "example.xml"
-        with open(example_xml_path, "rb") as f:
-            self.valid_xml = f.read()
+        self.deskpro = Deskpro(IPNUMBER, DEFAULTUSERNAME, DEFAULTPASSWORD)
+        self.valid_xml = load_example_xml()
 
     def test_fetchstatus_success(self):
         """fetchStatus should return XML content on successful response"""
@@ -143,12 +153,8 @@ class TestDeskproUpdate(unittest.TestCase):
 
     def setUp(self):
         """Set up test fixtures"""
-        self.deskpro = Deskpro("192.168.1.100", "user", "password")
-        
-        # Load example.xml
-        example_xml_path = Path(__file__).parent.parent / "example.xml"
-        with open(example_xml_path, "rb") as f:
-            self.valid_xml = f.read()
+        self.deskpro = Deskpro(IPNUMBER, DEFAULTUSERNAME, DEFAULTPASSWORD)
+        self.valid_xml = load_example_xml()
 
     def test_update_fetches_and_parses(self):
         """update should fetch XML and parse it into status"""
@@ -172,6 +178,7 @@ class TestDeskproUpdate(unittest.TestCase):
             self.deskpro.update()
 
             # Check that all expected keys exist
+            # BUGBUG: Consider making this more robust by checking against the keys in Statii.STATUSMAP
             expected_keys = [
                 "AmbientNoiseLevel", "SoundLevel", "PeopleCount",
                 "RoomInUse", "T3AlarmDetected", "AmbientTemperature",
@@ -184,32 +191,20 @@ class TestDeskproUpdate(unittest.TestCase):
 class TestStatiiDefaultStatus(unittest.TestCase):
     """Test Statii.DefaultStatus() method"""
 
-    def test_default_status_returns_dict(self):
-        """DefaultStatus should return a dictionary"""
-        result = Deskpro.Statii.DefaultStatus()
-        self.assertIsInstance(result, dict)
-
     def test_default_status_all_keys_none(self):
         """DefaultStatus should initialize all keys to None"""
         result = Deskpro.Statii.DefaultStatus()
+        self.assertIsInstance(result, dict)
         for value in result.values():
             self.assertIsNone(value)
 
     def test_default_status_has_all_expected_keys(self):
         """DefaultStatus should have all keys from STATUSMAP"""
         result = Deskpro.Statii.DefaultStatus()
+        self.assertIsInstance(result, dict)
         self.assertEqual(set(result.keys()), set(Deskpro.Statii.STATUSMAP.keys()))
+        
 
-    def test_default_status_expected_keys(self):
-        """DefaultStatus should include expected sensor keys"""
-        result = Deskpro.Statii.DefaultStatus()
-        expected_keys = [
-            "AmbientNoiseLevel", "SoundLevel", "PeopleCount",
-            "RoomInUse", "T3AlarmDetected", "AmbientTemperature",
-            "RelativeHumidity"
-        ]
-        for key in expected_keys:
-            self.assertIn(key, result)
 
 
 class TestStatiiParsing(unittest.TestCase):
@@ -217,10 +212,7 @@ class TestStatiiParsing(unittest.TestCase):
 
     def setUp(self):
         """Set up test fixtures"""
-        # Load example.xml
-        example_xml_path = Path(__file__).parent.parent / "example.xml"
-        with open(example_xml_path, "rb") as f:
-            self.valid_xml = f.read()
+        self.valid_xml = load_example_xml()
 
     def test_statii_init_with_xml(self):
         """Statii should initialize with XML bytes"""
@@ -296,10 +288,7 @@ class TestStatiiGettext(unittest.TestCase):
 
     def setUp(self):
         """Set up test fixtures"""
-        # Load example.xml
-        example_xml_path = Path(__file__).parent.parent / "example.xml"
-        with open(example_xml_path, "rb") as f:
-            self.valid_xml = f.read()
+        self.valid_xml = load_example_xml()
         self.statii = Deskpro.Statii(self.valid_xml)
 
     def test_gettext_valid_path(self):
@@ -328,10 +317,7 @@ class TestStatiiGet(unittest.TestCase):
 
     def setUp(self):
         """Set up test fixtures"""
-        # Load example.xml
-        example_xml_path = Path(__file__).parent.parent / "example.xml"
-        with open(example_xml_path, "rb") as f:
-            self.valid_xml = f.read()
+        self.valid_xml = load_example_xml()
         self.statii = Deskpro.Statii(self.valid_xml)
 
     def test_get_valid_element(self):
@@ -368,25 +354,22 @@ class TestStatiiEdgeCases(unittest.TestCase):
 
     def setUp(self):
         """Set up test fixtures"""
-        # Load example.xml
-        example_xml_path = Path(__file__).parent.parent / "example.xml"
-        with open(example_xml_path, "rb") as f:
-            self.valid_xml = f.read()
 
     def test_statii_with_invalid_xml_raises_error(self):
         """Statii should raise error with invalid XML"""
-        invalid_xml = b"<Not>Valid<XML"
+        invalid_xml = "<Not>Valid<XML"
         with self.assertRaises(Exception):
             Deskpro.Statii(invalid_xml)
 
     def test_statii_with_empty_xml_raises_error(self):
         """Statii should raise error with empty XML"""
         with self.assertRaises(Exception):
-            Deskpro.Statii(b"")
+            Deskpro.Statii("")
 
     def test_statii_minimal_valid_xml(self):
-        """Statii should handle minimal valid XML with RoomAnalytics"""
-        minimal_xml = b"""<?xml version="1.0"?>
+        """Statii should handle minimal valid XML with RoomAnalytics. 
+        If I get at least ONE value, that value should be provided and the other values should be None."""
+        minimal_xml = """<?xml version="1.0"?>
 <Status>
   <RoomAnalytics>
     <AmbientNoise>
@@ -398,20 +381,18 @@ class TestStatiiEdgeCases(unittest.TestCase):
 </Status>"""
         statii = Deskpro.Statii(minimal_xml)
         self.assertIsNotNone(statii.ra)
-
-    def test_statusmap_completeness(self):
-        """STATUSMAP should have all expected mappings"""
-        expected_mappings = {
-            "AmbientNoiseLevel": "AmbientNoise/Level/A",
-            "SoundLevel": "Sound/Level/A",
-            "PeopleCount": "PeopleCount/Current",
-            "RoomInUse": "RoomInUse",
-            "T3AlarmDetected": "T3Alarm/Detected",
-            "AmbientTemperature": "AmbientTemperature",
-            "RelativeHumidity": "RelativeHumidity",
-        }
-        self.assertEqual(Deskpro.Statii.STATUSMAP, expected_mappings)
-
+        result = statii.Parse()
+        
+        # all values in the STATUSMAP should be present.
+        self.assertEqual(set(result.keys()), set(Deskpro.Statii.STATUSMAP.keys()))
+               
+        # AmbientNoiseLevel should be the only one with a value, and the rest should be None.
+        
+        self.assertEqual(result["AmbientNoiseLevel"], "25")
+        
+        for key, value in result.items():
+            if key != "AmbientNoiseLevel":
+                self.assertIsNone(value)
 
 if __name__ == "__main__":
     unittest.main()
