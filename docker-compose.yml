@@ -8,7 +8,7 @@ services:
       # Connection settings
       DESKPRO_HOST: "cisco.deskpro" # replace this with yours
       DESKPRO_VERIFY_SSL: "false"   # Deskpro uses a self-signed cert, so we disable SSL verification. Set to "true" if you have a valid cert.  This will also reduce logging spam
-      POLL_INTERVAL: "1" # you want this very small to get near real-time updates, but be mindful of the load on the Deskpro.  
+      POLL_INTERVAL_MS: "450" # you want this very small to get near real-time updates, but be mindful of the load on the Deskpro.  
       # 1 second seems fine in my testing, but just in case...
 
       # DO NOT USE ADMIN CREDS.  
