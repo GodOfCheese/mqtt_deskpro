@@ -53,7 +53,7 @@ class Config:
     mqtt_tls: bool = os.getenv("MQTT_TLS", "false").lower() == "true"
 
     # --- Bridge behaviour ---
-    poll_interval_seconds: int = int(os.getenv("POLL_INTERVAL", "10"))
+    poll_interval_ms: int = int(os.getenv("POLL_INTERVAL_MS", "10000"))
     device_name: str = os.getenv("DEVICE_NAME", "Cisco Desk Pro")
     device_id: str = os.getenv("DEVICE_ID", "cisco_deskpro_1")
 
@@ -115,25 +115,6 @@ def get_device_status() -> dict[str, Any]:
         for sensor in SENSORS:
             status[sensor.key] = data.get(sensor.deskpro_key, "unavailable")
             pass
-        
-        #status["ambient_noise_level"] = data.get("AmbientNoiseLevel")
-        #status["sound_level"] = data.get("SoundLevel")
-        #status["people_count"] = data.get("PeopleCount")
-        #status["room_in_use"] = data.get("RoomInUse")
-        #status["t3_alarm_detected"] = data.get("T3AlarmDetected")
-        #status["ambient_temperature"] = data.get("AmbientTemperature")
-        #status["relative_humidity"] = data.get("RelativeHumidity")
-    
-        # Return unavailable status on error
-        #status = {
-        #    "ambient_noise_level": "unavailable",
-        #    "sound_level": "unavailable",
-        #    "people_count": "unavailable",
-        #    "room_in_use": "unavailable",
-        #    "t3_alarm_detected": "unavailable",
-        #    "ambient_temperature": "unavailable",
-        #    "relative_humidity": "unavailable",
-        #}
 
     return status
 
@@ -245,8 +226,8 @@ def build_mqtt_client() -> mqtt.Client:
 
 def main():
     log.info("Starting Cisco Desk Pro → MQTT bridge")
-    log.info("Polling %s every %ds → MQTT %s:%s",
-             CONFIG.deskpro_host, CONFIG.poll_interval_seconds,
+    log.info("Polling %s every %dms → MQTT %s:%s",
+             CONFIG.deskpro_host, CONFIG.poll_interval_ms,
              CONFIG.mqtt_host, CONFIG.mqtt_port)
 
     client = build_mqtt_client()
@@ -283,7 +264,9 @@ def main():
             discovery_published = True
 
         publish_status(client, status)
-        time.sleep(CONFIG.poll_interval_seconds)
+
+        if not shutdown:
+            time.sleep(CONFIG.poll_interval_ms / 1000) # time.sleep expects seconds, but our config is in ms.  Will handle fractional seconds correctly
 
     log.info("Shutting down bridge...")
     client.publish(f"{CONFIG.topic_root}/availability", "offline", retain=True)

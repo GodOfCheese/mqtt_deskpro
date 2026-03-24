@@ -37,7 +37,7 @@ class TestConfigInitialization(unittest.TestCase):
         self.assertIsNotNone(config.mqtt_port)
         self.assertIsNotNone(config.device_name)
         self.assertIsNotNone(config.device_id)
-        self.assertIsNotNone(config.poll_interval_seconds)
+        self.assertIsNotNone(config.poll_interval_ms)
 
     def test_config_instance_types_are_correct(self):
         """Config fields should have correct types"""
