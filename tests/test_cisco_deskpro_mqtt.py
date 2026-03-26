@@ -374,16 +374,11 @@ class TestPublishStatus(MockDeskproTestBase):
         
         bridge.publish_status(self.mock_mqtt_client, self.mock_status)
         
-        # Check that values were published
-        publish_calls = self.mock_mqtt_client.publish.call_args_list
-        
-        # Find the ambient_noise_level publish call
-        noise_call = next(
-            (call for call in publish_calls if "ambient_noise_level" in call[0][0]),
-            None
+        self.mock_mqtt_client.publish.assert_any_call( 
+            f"{mock_config.topic_root}/ambient_noise_level/state", 
+            "32",
+            retain=True
         )
-        self.assertIsNotNone(noise_call)
-        self.assertEqual(noise_call[0][1], "32")
 
     @patch("cisco_deskpro_mqtt.CONFIG")
     def test_publish_status_handles_unavailable(self, mock_config):
@@ -393,14 +388,12 @@ class TestPublishStatus(MockDeskproTestBase):
         
         bridge.publish_status(self.mock_mqtt_client, status)
         
-        # Check sound_level publish
-        sound_call = next(
-            (call for call in self.mock_mqtt_client.publish.call_args_list 
-             if "sound_level" in call[0][0]),
-            None
+        self.mock_mqtt_client.publish.assert_any_call( 
+            f"{mock_config.topic_root}/sound_level/state", 
+            "unavailable",
+            retain=True
         )
-        self.assertIsNotNone(sound_call)
-        self.assertEqual(sound_call[0][1], "unavailable")
+
 
     @patch("cisco_deskpro_mqtt.CONFIG")
     def test_publish_status_handles_none_values(self, mock_config):
@@ -411,27 +404,11 @@ class TestPublishStatus(MockDeskproTestBase):
         
         bridge.publish_status(self.mock_mqtt_client, status)
         
-        # Check that None was converted to "unavailable"
-        people_call = next(
-            (call for call in self.mock_mqtt_client.publish.call_args_list 
-             if "people_count" in call[0][0]),
-            None
+        self.mock_mqtt_client.publish.assert_any_call(
+            f"{mock_config.topic_root}/people_count/state", 
+            "unavailable",
+            retain=True
         )
-        self.assertIsNotNone(people_call)
-        self.assertEqual(people_call[0][1], "unavailable")
-
-    @patch("cisco_deskpro_mqtt.CONFIG")
-    def test_publish_status_uses_retain_flag(self, mock_config):
-        """publish_status should use retain=True"""
-        mock_config.topic_root = "homeassistant/sensor/test_device"
-        
-        bridge.publish_status(self.mock_mqtt_client, self.mock_status)
-        
-        # Check that retain=True is passed
-        for call_args in self.mock_mqtt_client.publish.call_args_list:
-            if len(call_args[0]) > 2:
-                self.assertTrue(call_args[0][2])
-
 
 class TestBuildMqttClient(unittest.TestCase):
     """Test build_mqtt_client function"""
