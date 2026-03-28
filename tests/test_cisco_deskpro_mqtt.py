@@ -79,38 +79,28 @@ class TestSensorConfiguration(unittest.TestCase):
             self.assertIsNotNone(sensor.key)
             self.assertIsNotNone(sensor.name)
             self.assertIsNotNone(sensor.icon)
-            self.assertIsNotNone(sensor.deskpro_key)
+            self.assertIsNotNone(sensor.xml_path)
 
     def test_sensor_keys_are_unique(self):
         """All sensor keys should be unique"""
         keys = [s.key for s in bridge.SENSORS]
         self.assertEqual(len(keys), len(set(keys)))
 
-    def test_sensor_deskpro_keys_are_unique(self):
-        """All sensor deskpro_keys should be unique"""
-        deskpro_keys = [s.deskpro_key for s in bridge.SENSORS]
-        self.assertEqual(len(deskpro_keys), len(set(deskpro_keys)))
+    def test_sensor_xml_paths_are_unique(self):
+        """All sensor xml_paths should be unique"""
+        xml_paths = [s.xml_path for s in bridge.SENSORS]
+        self.assertEqual(len(xml_paths), len(set(xml_paths)))
 
     def test_sensors_have_expected_keys(self):
-        """There should be a 1:1 mapping between bridge and deskpro sensors"""
+        """All sensors should have unique keys and valid XML paths"""
+        # Verify that all sensor keys are unique
+        sensor_keys = [s.key for s in bridge.SENSORS]
+        self.assertEqual(len(sensor_keys), len(set(sensor_keys)), "Sensor keys should be unique")
         
-        for mapkey in Deskpro.Statii.STATUSMAP.keys():
-            self.assertIn(
-                mapkey,
-                [s.deskpro_key for s in bridge.SENSORS], 
-                f"Deskpro key {mapkey} is not mapped to any sensor in the bridge"
-            )
-            
-        # less likely, but also check to ensure that the bridge doesn't have any sensors that aren't mapped to deskpro keys, 
-        # since that would be suspicious.  
-        # If we add new sensors to the bridge, but forget to add them to the deskpro parsing, that would be a problem, and this test would catch that.
-        
+        # Verify that all sensor xml_paths are unique and non-empty
         for sensor in bridge.SENSORS:
-            self.assertIn(
-                sensor.deskpro_key,
-                Deskpro.Statii.STATUSMAP.keys(),
-                f"Sensor {sensor.key} is mapped to deskpro key {sensor.deskpro_key}, but that key is not in the Deskpro status map"
-            )
+            self.assertIsNotNone(sensor.xml_path)
+            self.assertGreater(len(sensor.xml_path), 0, f"Sensor {sensor.key} has empty xml_path")
 
 
 class TestBuildDeskproClient(unittest.TestCase):
@@ -197,16 +187,16 @@ class TestGetDeviceStatus(MockDeskproTestBase):
 
     @patch("cisco_deskpro_mqtt.DESKPRO_CLIENT")
     def test_get_device_status_maps_deskpro_keys(self, mock_client):
-        """get_device_status should map from deskpro_key to sensor key"""
+        """get_device_status should map sensor keys correctly"""
         deskpro_status = {
-            "AmbientNoiseLevel": "32",
-            "SoundLevel": "41",
-            "PeopleCount": "1",
-            "RoomInUse": "True",
-            "T3AlarmDetected": "False",
-            "AmbientTemperature": "24.0",
-            "RelativeHumidity": "50",
-            "StandbyState": "Off",
+            "ambient_noise_level": "32",
+            "sound_level": "41",
+            "people_count": "1",
+            "room_in_use": "True",
+            "t3_alarm_detected": "False",
+            "ambient_temperature": "24.0",
+            "relative_humidity": "50",
+            "standby_state": "Off",
         }
         mock_client.update = MagicMock()
         mock_client.status = deskpro_status
@@ -233,7 +223,7 @@ class TestGetDeviceStatus(MockDeskproTestBase):
         """get_device_status should initialize all keys as unavailable"""
         mock_client.update = MagicMock()
         # Return partial data
-        mock_client.status = {"AmbientNoiseLevel": "30"}
+        mock_client.status = {"ambient_noise_level": "30"}
         
         result = bridge.get_device_status()
         
@@ -245,7 +235,7 @@ class TestGetDeviceStatus(MockDeskproTestBase):
     def test_get_device_status_missing_deskpro_key_unavailable(self, mock_client):
         """get_device_status should mark missing keys as unavailable"""
         mock_client.update = MagicMock()
-        mock_client.status = {"AmbientNoiseLevel": "32"}  # Only one key
+        mock_client.status = {"ambient_noise_level": "32"}  # Only one key
         
         result = bridge.get_device_status()
         

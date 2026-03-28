@@ -2,10 +2,38 @@
 # THIS FILE IS TEMPORARY UNTIL I CAN GET IT ONTO PYPI.
 #
 
+from dataclasses import dataclass
 from typing import Optional
 import requests
 import xml.etree.ElementTree as ET
 from requests.auth import HTTPBasicAuth
+
+
+# ---------------------------------------------------------------------------
+# Sensor Configuration
+# ---------------------------------------------------------------------------
+
+@dataclass
+class Sensor:
+    key: str
+    name: str
+    icon: str
+    xml_path: str
+    device_class: Optional[str] = None
+    unit: Optional[str] = None
+
+
+SENSORS: list[Sensor] = [
+    Sensor("ambient_noise_level", "Ambient Noise Level",  "mdi:volume-mute",      "RoomAnalytics/AmbientNoise/Level/A",  unit="dB"),
+    Sensor("sound_level",         "Sound Level",          "mdi:volume-high",      "RoomAnalytics/Sound/Level/A",         unit="dB"),
+    Sensor("people_count",        "People Count",         "mdi:account-multiple", "RoomAnalytics/PeopleCount/Current"),
+    Sensor("room_in_use",         "Room In Use",          "mdi:door-open",        "RoomAnalytics/RoomInUse"),
+    Sensor("t3_alarm_detected",   "T3 Alarm Detected",    "mdi:alarm",            "RoomAnalytics/T3Alarm/Detected"),
+    Sensor("ambient_temperature", "Ambient Temperature",  "mdi:thermometer",      "RoomAnalytics/AmbientTemperature", device_class="temperature", unit="°C"),
+    Sensor("relative_humidity",   "Relative Humidity",    "mdi:water-percent",    "RoomAnalytics/RelativeHumidity",   device_class="humidity",    unit="%"),
+    Sensor("standby_state",       "Standby State",        "mdi:power-standby",    "Standby/State"),
+]
+
 
 class DeskproError(Exception):
     """
@@ -86,28 +114,14 @@ class Deskpro:
 
             return ret[0]
 
-        STATUSMAP = {
-            # looks like AmbientNoiseLevel is the estimated noise level all the time
-            "AmbientNoiseLevel": "RoomAnalytics/AmbientNoise/Level/A",
-
-            # SoundLevel seems to be the CURRENT noise level
-            "SoundLevel": "RoomAnalytics/Sound/Level/A",
-            "PeopleCount": "RoomAnalytics/PeopleCount/Current",
-            "RoomInUse": "RoomAnalytics/RoomInUse",
-            "T3AlarmDetected": "RoomAnalytics/T3Alarm/Detected",
-            "AmbientTemperature": "RoomAnalytics/AmbientTemperature",
-            "RelativeHumidity": "RoomAnalytics/RelativeHumidity",
-            "StandbyState": "Standby/State"
-        }
-
         @classmethod
         def DefaultStatus(cls) -> dict[str, Optional[str]]:
             """
             For generating initial (unknown) stats
             """
             ret = {}
-            for stat in cls.STATUSMAP.keys():
-                ret[stat] = None
+            for sensor in SENSORS:
+                ret[sensor.key] = None
             return ret
 
         def Parse(self) -> dict[str, str]:
@@ -116,8 +130,8 @@ class Deskpro:
             this triggers parsing of it.
             """
             ret = {}
-            for stat, path in self.STATUSMAP.items():
-                ret[stat] = self.gettext(path)
+            for sensor in SENSORS:
+                ret[sensor.key] = self.gettext(sensor.xml_path)
 
             return ret
 

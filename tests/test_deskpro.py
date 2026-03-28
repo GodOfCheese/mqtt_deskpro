@@ -189,12 +189,8 @@ class TestDeskproUpdate(unittest.TestCase):
             self.deskpro.update()
 
             # Check that all expected keys exist
-            # BUGBUG: Consider making this more robust by checking against the keys in Statii.STATUSMAP
-            expected_keys = [
-                "AmbientNoiseLevel", "SoundLevel", "PeopleCount",
-                "RoomInUse", "T3AlarmDetected", "AmbientTemperature",
-                "RelativeHumidity"
-            ]
+            from deskpro import SENSORS
+            expected_keys = [s.key for s in SENSORS]
             for key in expected_keys:
                 self.assertIn(key, self.deskpro.status)
 
@@ -210,10 +206,11 @@ class TestStatiiDefaultStatus(unittest.TestCase):
             self.assertIsNone(value)
 
     def test_default_status_has_all_expected_keys(self):
-        """DefaultStatus should have all keys from STATUSMAP"""
+        """DefaultStatus should have all keys from SENSORS"""
+        from deskpro import SENSORS
         result = Deskpro.Statii.DefaultStatus()
         self.assertIsInstance(result, dict)
-        self.assertEqual(set(result.keys()), set(Deskpro.Statii.STATUSMAP.keys()))
+        self.assertEqual(set(result.keys()), {s.key for s in SENSORS})
         
 
 
@@ -238,60 +235,61 @@ class TestStatiiParsing(unittest.TestCase):
         self.assertIsInstance(result, dict)
 
     def test_statii_parse_ambient_noise(self):
-        """Statii.Parse() should extract AmbientNoiseLevel"""
+        """Statii.Parse() should extract ambient_noise_level"""
         statii = Deskpro.Statii(self.valid_xml)
         result = statii.Parse()
-        self.assertEqual(result["AmbientNoiseLevel"], "32")
+        self.assertEqual(result["ambient_noise_level"], "32")
 
     def test_statii_parse_sound_level(self):
-        """Statii.Parse() should extract SoundLevel"""
+        """Statii.Parse() should extract sound_level"""
         statii = Deskpro.Statii(self.valid_xml)
         result = statii.Parse()
-        self.assertEqual(result["SoundLevel"], "41")
+        self.assertEqual(result["sound_level"], "41")
 
     def test_statii_parse_people_count(self):
-        """Statii.Parse() should extract PeopleCount"""
+        """Statii.Parse() should extract people_count"""
         statii = Deskpro.Statii(self.valid_xml)
         result = statii.Parse()
-        self.assertEqual(result["PeopleCount"], "1")
+        self.assertEqual(result["people_count"], "1")
 
     def test_statii_parse_room_in_use(self):
-        """Statii.Parse() should extract RoomInUse"""
+        """Statii.Parse() should extract room_in_use"""
         statii = Deskpro.Statii(self.valid_xml)
         result = statii.Parse()
-        self.assertEqual(result["RoomInUse"], "True")
+        self.assertEqual(result["room_in_use"], "True")
 
     def test_statii_parse_t3_alarm(self):
-        """Statii.Parse() should extract T3AlarmDetected"""
+        """Statii.Parse() should extract t3_alarm_detected"""
         statii = Deskpro.Statii(self.valid_xml)
         result = statii.Parse()
-        self.assertEqual(result["T3AlarmDetected"], "False")
+        self.assertEqual(result["t3_alarm_detected"], "False")
 
     def test_statii_parse_temperature(self):
-        """Statii.Parse() should extract AmbientTemperature"""
+        """Statii.Parse() should extract ambient_temperature"""
         statii = Deskpro.Statii(self.valid_xml)
         result = statii.Parse()
-        self.assertEqual(result["AmbientTemperature"], "24.0")
+        self.assertEqual(result["ambient_temperature"], "24.0")
 
     def test_statii_parse_humidity(self):
-        """Statii.Parse() should extract RelativeHumidity"""
+        """Statii.Parse() should extract relative_humidity"""
         statii = Deskpro.Statii(self.valid_xml)
         result = statii.Parse()
-        self.assertEqual(result["RelativeHumidity"], "50")
+        self.assertEqual(result["relative_humidity"], "50")
 
     def test_statii_parse_all_keys_present(self):
-        """Statii.Parse() should have all keys from STATUSMAP"""
+        """Statii.Parse() should have all keys from SENSORS"""
+        from deskpro import SENSORS
         statii = Deskpro.Statii(self.valid_xml)
         result = statii.Parse()
-        for key in Deskpro.Statii.STATUSMAP.keys():
-            self.assertIn(key, result)
+        for sensor in SENSORS:
+            self.assertIn(sensor.key, result)
 
     def test_statii_tostatus_wrapper(self):
         """Statii.ToStatus() should be a convenient wrapper"""
         result = Deskpro.Statii.ToStatus(self.valid_xml)
         self.assertIsInstance(result, dict)
-        self.assertEqual(result["AmbientNoiseLevel"], "32")
-        self.assertEqual(result["PeopleCount"], "1")
+        self.assertEqual(result["ambient_noise_level"], "32")
+        self.assertEqual(result["people_count"], "1")
 
 
 class TestStatiiGettext(unittest.TestCase):
@@ -394,15 +392,16 @@ class TestStatiiEdgeCases(unittest.TestCase):
         self.assertIsNotNone(statii.ra)
         result = statii.Parse()
         
-        # all values in the STATUSMAP should be present.
-        self.assertEqual(set(result.keys()), set(Deskpro.Statii.STATUSMAP.keys()))
+        # all values in the SENSORS should be present.
+        from deskpro import SENSORS
+        self.assertEqual(set(result.keys()), {s.key for s in SENSORS})
                
-        # AmbientNoiseLevel should be the only one with a value, and the rest should be None.
+        # ambient_noise_level should be the only one with a value, and the rest should be None.
         
-        self.assertEqual(result["AmbientNoiseLevel"], "25")
+        self.assertEqual(result["ambient_noise_level"], "25")
         
         for key, value in result.items():
-            if key != "AmbientNoiseLevel":
+            if key != "ambient_noise_level":
                 self.assertIsNone(value)
 
 if __name__ == "__main__":

@@ -22,7 +22,7 @@ from dataclasses import dataclass, field
 from typing import Any, Optional
 
 import paho.mqtt.client as mqtt
-from deskpro import Deskpro, DeskproError
+from deskpro import Deskpro, DeskproError, Sensor, SENSORS
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -113,8 +113,7 @@ def get_device_status() -> dict[str, Any]:
         # Map Deskpro data to our status dict based on SENSORS configuration
         
         for sensor in SENSORS:
-            status[sensor.key] = data.get(sensor.deskpro_key, "unavailable")
-            pass
+            status[sensor.key] = data.get(sensor.key, "unavailable")
 
     return status
 
@@ -129,28 +128,6 @@ DEVICE_INFO_TEMPLATE = {
     "manufacturer": "Cisco",
     "model": "Desk Pro",
 }
-
-
-@dataclass
-class Sensor:
-    key: str
-    name: str
-    icon: str
-    deskpro_key: str
-    device_class: Optional[str] = None
-    unit: Optional[str] = None
-
-
-SENSORS: list[Sensor] = [
-    Sensor("ambient_noise_level", "Ambient Noise Level",  "mdi:volume-mute",      "AmbientNoiseLevel",  unit="dB"),
-    Sensor("sound_level",         "Sound Level",          "mdi:volume-high",      "SoundLevel",         unit="dB"),
-    Sensor("people_count",        "People Count",         "mdi:account-multiple", "PeopleCount"),
-    Sensor("room_in_use",         "Room In Use",          "mdi:door-open",        "RoomInUse"),
-    Sensor("t3_alarm_detected",   "T3 Alarm Detected",    "mdi:alarm",            "T3AlarmDetected"),
-    Sensor("ambient_temperature", "Ambient Temperature",  "mdi:thermometer",      "AmbientTemperature", device_class="temperature", unit="°C"),
-    Sensor("relative_humidity",   "Relative Humidity",    "mdi:water-percent",    "RelativeHumidity",   device_class="humidity",    unit="%"),
-    Sensor("standby_state",       "Standby State",        "mdi:power-standby",    "StandbyState"),
-]
 
 
 def publish_discovery(client: mqtt.Client, status: dict[str, Any]) -> None:
