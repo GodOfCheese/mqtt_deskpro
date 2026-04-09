@@ -4,6 +4,7 @@
 
 from dataclasses import dataclass
 from typing import Optional
+import re
 import requests
 import xml.etree.ElementTree as ET
 from requests.auth import HTTPBasicAuth
@@ -134,6 +135,43 @@ class Deskpro:
                 ret[sensor.key] = self.gettext(sensor.xml_path)
 
             return ret
+        
+        def ParseUnknowns(self) -> list[Sensor]:
+            """
+            Walk the entire XML and return Sensor definitions for any leaf nodes
+            not already present in SENSORS.  The key, name, and xml_path are derived
+            from the element's path; the icon defaults to mdi:information-outline.
+            """
+            known_paths = {sensor.xml_path for sensor in SENSORS}
+
+            sensors: list[Sensor] = []
+
+            def walk_element(element, current_path=""):
+                element_path = f"{current_path}/{element.tag}" if current_path else element.tag
+                has_children_with_text = any(child.text and child.text.strip() for child in element)
+
+                if element.text and element.text.strip() and not has_children_with_text:
+                    if element_path not in known_paths:
+                        key  = element_path.lower().replace("/", "_")
+                        name = " ".join(
+                            re.sub(r'([a-z])([A-Z])', r'\1 \2', part)
+                            for part in element_path.split("/")
+                        )
+                        sensors.append(Sensor(
+                            key=key,
+                            name=name,
+                            icon="mdi:information-outline",
+                            xml_path=element_path,
+                        ))
+
+                for child in element:
+                    walk_element(child, element_path)
+
+            for child in self.root:
+                walk_element(child)
+
+            return sensors
+            
 
         @classmethod
         def ToStatus(cls, xml: str) -> dict[str, str]:
@@ -145,7 +183,7 @@ class Deskpro:
 
         pass  # the class
 
-    def update(self):
+    def update(self, includeUnknowns=False) -> None:
         """
         updates the XML from the Deskpro, then turns it into
         a dictionary of stats.
@@ -156,6 +194,12 @@ class Deskpro:
         # 
 
         self.status = Deskpro.Statii.ToStatus(xml_string)
+        
+        if includeUnknowns:
+            statii = Deskpro.Statii(xml_string)
+            for sensor in statii.ParseUnknowns():
+                self.status[sensor.key] = statii.gettext(sensor.xml_path)
+        
         return
     pass
 

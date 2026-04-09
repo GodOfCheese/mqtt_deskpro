@@ -404,5 +404,105 @@ class TestStatiiEdgeCases(unittest.TestCase):
             if key != "ambient_noise_level":
                 self.assertIsNone(value)
 
+
+class TestParseUnknowns(unittest.TestCase):
+    """Test Statii.ParseUnknowns() method"""
+
+    def test_parse_unknowns_excludes_known_sensors(self):
+        """ParseUnknowns should not include Sensors already in SENSORS"""
+        valid_xml = """<?xml version="1.0"?>
+<Status>
+  <RoomAnalytics>
+    <AmbientNoise>
+      <Level>
+        <A>32</A>
+      </Level>
+    </AmbientNoise>
+    <Sound>
+      <Level>
+        <A>41</A>
+      </Level>
+    </Sound>
+  </RoomAnalytics>
+  <Standby>
+    <State>Off</State>
+  </Standby>
+</Status>"""
+        statii = Deskpro.Statii(valid_xml)
+        unknowns = statii.ParseUnknowns()
+
+        from deskpro import SENSORS
+        unknown_keys = {s.key for s in unknowns}
+        for sensor in SENSORS:
+            expected_key = sensor.xml_path.lower().replace("/", "_")
+            self.assertNotIn(expected_key, unknown_keys)
+
+    def test_parse_unknowns_includes_unknown_sensors(self):
+        """ParseUnknowns should return a Sensor for leaf nodes not in SENSORS"""
+        xml_with_unknowns = """<?xml version="1.0"?>
+<Status>
+  <RoomAnalytics>
+    <AmbientNoise>
+      <Level>
+        <A>32</A>
+      </Level>
+    </AmbientNoise>
+    <CustomMetric>
+      <Value>123</Value>
+    </CustomMetric>
+  </RoomAnalytics>
+  <Standby>
+    <State>Off</State>
+  </Standby>
+</Status>"""
+        statii = Deskpro.Statii(xml_with_unknowns)
+        unknowns = statii.ParseUnknowns()
+
+        keys = {s.key for s in unknowns}
+        self.assertIn("roomanalytics_custommetric_value", keys)
+
+        sensor = next(s for s in unknowns if s.key == "roomanalytics_custommetric_value")
+        self.assertEqual(sensor.xml_path, "RoomAnalytics/CustomMetric/Value")
+        self.assertEqual(sensor.icon, "mdi:information-outline")
+
+    def test_parse_unknowns_returns_list(self):
+        """ParseUnknowns should return a list of Sensor objects"""
+        from deskpro import Sensor
+        valid_xml = """<?xml version="1.0"?>
+<Status>
+  <RoomAnalytics>
+    <AmbientNoise>
+      <Level>
+        <A>32</A>
+      </Level>
+    </AmbientNoise>
+  </RoomAnalytics>
+</Status>"""
+        statii = Deskpro.Statii(valid_xml)
+        result = statii.ParseUnknowns()
+        self.assertIsInstance(result, list)
+        for item in result:
+            self.assertIsInstance(item, Sensor)
+
+    def test_parse_unknowns_sanitizes_keys(self):
+        """ParseUnknowns should build keys as lowercase path with slashes replaced by underscores"""
+        xml_with_deep_path = """<?xml version="1.0"?>
+<Status>
+  <RoomAnalytics>
+    <VeryDeeplyNested>
+      <Path>
+        <Here>42</Here>
+      </Path>
+    </VeryDeeplyNested>
+  </RoomAnalytics>
+</Status>"""
+        statii = Deskpro.Statii(xml_with_deep_path)
+        unknowns = statii.ParseUnknowns()
+
+        expected_key = "roomanalytics_verydeeplyNested_path_here".lower()
+        keys = {s.key for s in unknowns}
+        self.assertIn(expected_key, keys)
+
+
 if __name__ == "__main__":
     unittest.main()
