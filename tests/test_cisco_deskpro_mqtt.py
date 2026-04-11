@@ -168,20 +168,22 @@ class TestGetDeviceStatus(MockDeskproTestBase):
         """get_device_status should return status dict on success"""
         mock_client.update = MagicMock()
         mock_client.status = self.mock_status.copy()
-        
+        mock_client.sensors = bridge.SENSORS
+
         result = bridge.get_device_status()
-        
+
         self.assertIsInstance(result, dict)
-        mock_client.update.assert_called_once()
+        mock_client.update.assert_called_once_with(includeUnknowns=True)
 
     @patch("cisco_deskpro_mqtt.DESKPRO_CLIENT")
     def test_get_device_status_returns_all_keys(self, mock_client):
         """get_device_status should return all sensor keys"""
         mock_client.update = MagicMock()
         mock_client.status = self.mock_status.copy()
-        
+        mock_client.sensors = bridge.SENSORS
+
         result = bridge.get_device_status()
-        
+
         for sensor in bridge.SENSORS:
             self.assertIn(sensor.key, result)
 
@@ -200,9 +202,10 @@ class TestGetDeviceStatus(MockDeskproTestBase):
         }
         mock_client.update = MagicMock()
         mock_client.status = deskpro_status
-        
+        mock_client.sensors = bridge.SENSORS
+
         result = bridge.get_device_status()
-        
+
         self.assertEqual(result["ambient_noise_level"], "32")
         self.assertEqual(result["sound_level"], "41")
         self.assertEqual(result["people_count"], "1")
@@ -211,9 +214,9 @@ class TestGetDeviceStatus(MockDeskproTestBase):
     def test_get_device_status_on_deskpro_error(self, mock_client):
         """get_device_status should return unavailable on DeskproError"""
         mock_client.update = MagicMock(side_effect=DeskproError("Connection failed"))
-        
+
         result = bridge.get_device_status()
-        
+
         # All keys should be "unavailable"
         for sensor in bridge.SENSORS:
             self.assertEqual(result[sensor.key], "unavailable")
@@ -222,11 +225,11 @@ class TestGetDeviceStatus(MockDeskproTestBase):
     def test_get_device_status_initializes_unavailable(self, mock_client):
         """get_device_status should initialize all keys as unavailable"""
         mock_client.update = MagicMock()
-        # Return partial data
         mock_client.status = {"ambient_noise_level": "30"}
-        
+        mock_client.sensors = bridge.SENSORS
+
         result = bridge.get_device_status()
-        
+
         # All keys should exist
         for sensor in bridge.SENSORS:
             self.assertIn(sensor.key, result)
@@ -236,12 +239,27 @@ class TestGetDeviceStatus(MockDeskproTestBase):
         """get_device_status should mark missing keys as unavailable"""
         mock_client.update = MagicMock()
         mock_client.status = {"ambient_noise_level": "32"}  # Only one key
-        
+        mock_client.sensors = bridge.SENSORS
+
         result = bridge.get_device_status()
         
         # First key should be available, others unavailable
         self.assertEqual(result["ambient_noise_level"], "32")
         self.assertEqual(result["sound_level"], "unavailable")
+
+    @patch("cisco_deskpro_mqtt.DESKPRO_CLIENT")
+    def test_get_device_status_includes_unknown_sensor_values(self, mock_client):
+        """get_device_status should include values for unknown sensors returned by the client"""
+        from deskpro import Sensor
+        extra = Sensor("custom_metric", "Custom Metric", "mdi:information-outline", "Custom/Metric")
+        mock_client.update = MagicMock()
+        mock_client.status = {**self.mock_status, "custom_metric": "42"}
+        mock_client.sensors = bridge.SENSORS + [extra]
+
+        result = bridge.get_device_status()
+
+        self.assertIn("custom_metric", result)
+        self.assertEqual(result["custom_metric"], "42")
 
 
 class TestPublishDiscovery(MockDeskproTestBase):
@@ -338,6 +356,23 @@ class TestPublishDiscovery(MockDeskproTestBase):
             else:
                 self.assertTrue(call_args[1].get("retain", False))
 
+    @patch("cisco_deskpro_mqtt.DESKPRO_CLIENT")
+    @patch("cisco_deskpro_mqtt.CONFIG")
+    def test_publish_discovery_includes_unknown_sensors(self, mock_config, mock_deskpro_client):
+        """publish_discovery should publish config for unknown sensors too"""
+        from deskpro import Sensor
+        mock_config.topic_root = "homeassistant/sensor/test_device"
+        mock_config.discovery_prefix = "homeassistant"
+        mock_config.device_id = "test_device"
+        extra = Sensor("custom_metric", "Custom Metric", "mdi:information-outline", "Custom/Metric")
+        mock_deskpro_client.sensors = bridge.SENSORS + [extra]
+
+        bridge.publish_discovery(self.mock_mqtt_client, self.mock_status)
+
+        self.assertEqual(self.mock_mqtt_client.publish.call_count, len(bridge.SENSORS) + 1)
+        topics = [c[0][0] for c in self.mock_mqtt_client.publish.call_args_list]
+        self.assertTrue(any("custom_metric" in t for t in topics))
+
 
 class TestPublishStatus(MockDeskproTestBase):
     """Test publish_status function"""
@@ -395,10 +430,30 @@ class TestPublishStatus(MockDeskproTestBase):
         bridge.publish_status(self.mock_mqtt_client, status)
         
         self.mock_mqtt_client.publish.assert_any_call(
-            f"{mock_config.topic_root}/people_count/state", 
+            f"{mock_config.topic_root}/people_count/state",
             "unavailable",
             retain=True
         )
+
+    @patch("cisco_deskpro_mqtt.DESKPRO_CLIENT")
+    @patch("cisco_deskpro_mqtt.CONFIG")
+    def test_publish_status_includes_unknown_sensors(self, mock_config, mock_deskpro_client):
+        """publish_status should publish state for unknown sensors too"""
+        from deskpro import Sensor
+        mock_config.topic_root = "homeassistant/sensor/test_device"
+        extra = Sensor("custom_metric", "Custom Metric", "mdi:information-outline", "Custom/Metric")
+        mock_deskpro_client.sensors = bridge.SENSORS + [extra]
+        status = {**self.mock_status, "custom_metric": "42"}
+
+        bridge.publish_status(self.mock_mqtt_client, status)
+
+        self.assertEqual(self.mock_mqtt_client.publish.call_count, len(bridge.SENSORS) + 1)
+        self.mock_mqtt_client.publish.assert_any_call(
+            f"{mock_config.topic_root}/custom_metric/state",
+            "42",
+            retain=True,
+        )
+
 
 class TestBuildMqttClient(unittest.TestCase):
     """Test build_mqtt_client function"""

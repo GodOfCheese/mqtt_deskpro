@@ -59,12 +59,17 @@ class Deskpro:
         assert hostname is not None, "hostname is required"
         assert username is not None, "username is required"
         assert password is not None, "password is required"
-        
+
         self.url = f"https://{hostname}/status.xml"
         self.auth = HTTPBasicAuth(username=username, password=password)
         self.certverify = certverify
         self.status = Deskpro.Statii.DefaultStatus()
+        self._unknown_sensors: list[Sensor] = []
         self.session = requests.Session()
+
+    @property
+    def sensors(self) -> list[Sensor]:
+        return SENSORS + self._unknown_sensors
 
     def fetchStatus(self) -> str:
         """
@@ -77,10 +82,10 @@ class Deskpro:
 
         if response.content is None:
             raise DeskproError(f"No content in response from {self.url}")
-        
+
         assert response.content is not None, "response.content should not be None here, but it is.  This is a sanity check to satisfy the type checker."
         return response.content.decode("utf-8")
-    
+
     class Statii:
         """
         convenience library to simplify parsing the status data
@@ -88,9 +93,9 @@ class Deskpro:
         There are likely libraries for this specifically
         So when I find them, I'll switch to using those.
         """
-            
+
         def __init__(self, xml:str):
-            
+
             assert isinstance(xml, str), "xml must be a string.  If you have bytes, decode it first."
             self.root = ET.fromstring(xml)
             self.ra = self.get("RoomAnalytics", start=self.root)
@@ -135,7 +140,7 @@ class Deskpro:
                 ret[sensor.key] = self.gettext(sensor.xml_path)
 
             return ret
-        
+
         def ParseUnknowns(self) -> list[Sensor]:
             """
             Walk the entire XML and return Sensor definitions for any leaf nodes
@@ -171,7 +176,6 @@ class Deskpro:
                 walk_element(child)
 
             return sensors
-            
 
         @classmethod
         def ToStatus(cls, xml: str) -> dict[str, str]:
@@ -191,15 +195,17 @@ class Deskpro:
         xml_string = self.fetchStatus()
         #
         # for now we just pull the statii into a status dict.
-        # 
+        #
 
         self.status = Deskpro.Statii.ToStatus(xml_string)
-        
+
         if includeUnknowns:
             statii = Deskpro.Statii(xml_string)
-            for sensor in statii.ParseUnknowns():
+            self._unknown_sensors = statii.ParseUnknowns()
+            assert self._unknown_sensors is not None, "ParseUnknowns should never return None, but it did.  This is a sanity check to satisfy the type checker."
+            for sensor in self._unknown_sensors:
+                assert sensor.key is not None, "Sensor key should not be None, but it is.  This is a sanity check to satisfy the type checker."
                 self.status[sensor.key] = statii.gettext(sensor.xml_path)
-        
+
         return
     pass
-

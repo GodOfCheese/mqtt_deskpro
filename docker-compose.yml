@@ -8,6 +8,12 @@ services:
       # Connection settings
       DESKPRO_HOST: "cisco.deskpro" # replace this with yours
       DESKPRO_VERIFY_SSL: "false"   # Deskpro uses a self-signed cert, so we disable SSL verification. Set to "true" if you have a valid cert.  This will also reduce logging spam
+      DESKPRO_INCLUDE_UNKNOWNS: "false" # By default, include only a few predefined sensors that seem most useful.
+      # Setting this to "true" will create sensors for every status value that the deskpro provides.
+      # This is more future-proof and will give you more data, but it will create a LOT of sensors.  
+      # on my deskpro, this is about 250 different sensors that update twice a second (some of which never change, like the hardware ID).
+      # There may be useful data here, but I recommend testing this with a different DEVICE_NAME and DEVICE_ID than the default,
+      # so you won't be left with clutter if/when you switch back.
       POLL_INTERVAL_MS: "450" # you want this very small to get near real-time updates, but be mindful of the load on the Deskpro.  
       # 1 second seems fine in my testing, but just in case...
 
@@ -26,7 +32,7 @@ services:
       MQTT_PASS: ""
       MQTT_TLS: "false"
 
-      # Bridge settings
+      # Bridge settings.  These tell you what the "device" is called in Home Assistant, and the unique ID for the device.  You can run multiple instances of this bridge if you have multiple Deskpros, just give them different DEVICE_IDs and DEVICE_NAMEs to keep them separate in Home Assistant.
       DEVICE_NAME: "Cisco Desk Pro"
       DEVICE_ID: "cisco_deskpro_1"
     restart: unless-stopped

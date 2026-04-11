@@ -504,5 +504,37 @@ class TestParseUnknowns(unittest.TestCase):
         self.assertIn(expected_key, keys)
 
 
+class TestDeskproSensors(unittest.TestCase):
+    """Test Deskpro.sensors property"""
+
+    def _make_client(self):
+        return Deskpro(hostname="host", username="u", password="p")
+
+    def test_sensors_property_returns_known_sensors_by_default(self):
+        """sensors should equal SENSORS before any update"""
+        from deskpro import SENSORS
+        client = self._make_client()
+        self.assertEqual(client.sensors, SENSORS)
+
+    @patch.object(Deskpro, "fetchStatus")
+    def test_sensors_property_includes_unknowns_after_update(self, mock_fetch):
+        """sensors should include unknown leaf nodes after update(includeUnknowns=True)"""
+        from deskpro import SENSORS
+        mock_fetch.return_value = """<?xml version="1.0"?>
+<Status>
+  <RoomAnalytics>
+    <AmbientNoise><Level><A>32</A></Level></AmbientNoise>
+    <CustomMetric><Value>99</Value></CustomMetric>
+  </RoomAnalytics>
+  <Standby><State>Off</State></Standby>
+</Status>"""
+        client = self._make_client()
+        client.update(includeUnknowns=True)
+
+        self.assertGreater(len(client.sensors), len(SENSORS))
+        keys = {s.key for s in client.sensors}
+        self.assertIn("roomanalytics_custommetric_value", keys)
+
+
 if __name__ == "__main__":
     unittest.main()

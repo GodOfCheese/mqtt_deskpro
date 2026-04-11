@@ -44,6 +44,7 @@ class Config:
     deskpro_username: str = os.getenv("DESKPRO_USER", "admin")
     deskpro_password: str = os.getenv("DESKPRO_PASS", "password")
     deskpro_verify_ssl: bool = os.getenv("DESKPRO_VERIFY_SSL", "false").lower() == "true"
+    include_unknowns: bool = os.getenv("DESKPRO_INCLUDE_UNKNOWNS", "false").lower() == "true"
 
     # --- MQTT Broker ---
     mqtt_host: str = os.getenv("MQTT_HOST", "192.168.1.10")
@@ -101,18 +102,14 @@ def get_device_status() -> dict[str, Any]:
     # now fetch the real data, and overwrite the "unavailable" values if successful
 
     try:
-        DESKPRO_CLIENT.update()
-        data = DESKPRO_CLIENT.status        
+        DESKPRO_CLIENT.update(includeUnknowns=CONFIG.include_unknowns)
+        data = DESKPRO_CLIENT.status
     except DeskproError as e:
         log.error("Failed to fetch Deskpro status: %s", e)
         data = None
-        
-        
+
     if data is not None:
-        
-        # Map Deskpro data to our status dict based on SENSORS configuration
-        
-        for sensor in SENSORS:
+        for sensor in DESKPRO_CLIENT.sensors:
             status[sensor.key] = data.get(sensor.key, "unavailable")
 
     return status
@@ -132,7 +129,7 @@ DEVICE_INFO_TEMPLATE = {
 
 def publish_discovery(client: mqtt.Client, status: dict[str, Any]) -> None:
     """Publish Home Assistant MQTT discovery config for each sensor."""
-    for sensor in SENSORS:
+    for sensor in DESKPRO_CLIENT.sensors:
         state_topic = f"{CONFIG.topic_root}/{sensor.key}/state"
         config_topic = f"{CONFIG.discovery_prefix}/sensor/{CONFIG.device_id}/{sensor.key}/config"
 
@@ -154,7 +151,7 @@ def publish_discovery(client: mqtt.Client, status: dict[str, Any]) -> None:
 
 def publish_status(client: mqtt.Client, status: dict[str, Any]) -> None:
     """Publish current values for all sensors."""
-    for sensor in SENSORS:
+    for sensor in DESKPRO_CLIENT.sensors:
         state_topic = f"{CONFIG.topic_root}/{sensor.key}/state"
         value = status.get(sensor.key, "unavailable")
         client.publish(state_topic, str(value) if value is not None else "unavailable", retain=True)
