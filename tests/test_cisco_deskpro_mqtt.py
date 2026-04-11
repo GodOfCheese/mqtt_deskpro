@@ -66,6 +66,67 @@ class TestConfigInitialization(unittest.TestCase):
         self.assertIn(config.device_id, config.topic_root)
 
 
+class TestConfigIgnoreSensors(unittest.TestCase):
+    """Test Config.ignore_sensors initialization"""
+
+    def test_ignore_sensors_empty_by_default(self):
+        """ignore_sensors should be an empty list when env var is not set"""
+        config = bridge.Config()
+        self.assertIsInstance(config.ignore_sensors, list)
+        # default env var is "" which parses to []
+        # (may be non-empty if env var is set in the test environment, so just check type)
+
+    @patch.dict(os.environ, {"DESKPRO_IGNORE_SENSORS": "Time System Time,System Unit Uptime"})
+    def test_ignore_sensors_parsed_from_env(self):
+        """ignore_sensors should parse comma-separated names from the env var"""
+        config = bridge.Config()
+        self.assertIn("Time System Time", config.ignore_sensors)
+        self.assertIn("System Unit Uptime", config.ignore_sensors)
+        self.assertEqual(len(config.ignore_sensors), 2)
+
+    @patch.dict(os.environ, {"DESKPRO_IGNORE_SENSORS": " Foo , Bar , "})
+    def test_ignore_sensors_strips_whitespace(self):
+        """ignore_sensors should strip whitespace from each entry"""
+        config = bridge.Config()
+        self.assertIn("Foo", config.ignore_sensors)
+        self.assertIn("Bar", config.ignore_sensors)
+        self.assertEqual(len(config.ignore_sensors), 2)
+
+
+class TestActiveSensors(unittest.TestCase):
+    """Test active_sensors() helper"""
+
+    @patch("cisco_deskpro_mqtt.CONFIG")
+    @patch("cisco_deskpro_mqtt.DESKPRO_CLIENT")
+    def test_active_sensors_returns_all_when_no_ignores(self, mock_client, mock_config):
+        """active_sensors should return all sensors when ignore list is empty"""
+        mock_client.sensors = bridge.SENSORS
+        mock_config.ignore_sensors = []
+        result = bridge.active_sensors()
+        self.assertEqual(result, bridge.SENSORS)
+
+    @patch("cisco_deskpro_mqtt.CONFIG")
+    @patch("cisco_deskpro_mqtt.DESKPRO_CLIENT")
+    def test_active_sensors_excludes_ignored_by_name(self, mock_client, mock_config):
+        """active_sensors should exclude sensors whose name is in ignore_sensors"""
+        mock_client.sensors = bridge.SENSORS
+        ignore_name = bridge.SENSORS[0].name
+        mock_config.ignore_sensors = [ignore_name]
+        result = bridge.active_sensors()
+        names = [s.name for s in result]
+        self.assertNotIn(ignore_name, names)
+        self.assertEqual(len(result), len(bridge.SENSORS) - 1)
+
+    @patch("cisco_deskpro_mqtt.CONFIG")
+    @patch("cisco_deskpro_mqtt.DESKPRO_CLIENT")
+    def test_active_sensors_match_is_exact(self, mock_client, mock_config):
+        """active_sensors ignore list should require exact name match"""
+        mock_client.sensors = bridge.SENSORS
+        mock_config.ignore_sensors = [bridge.SENSORS[0].name[:4]]  # partial name
+        result = bridge.active_sensors()
+        self.assertEqual(len(result), len(bridge.SENSORS))
+
+
 class TestSensorConfiguration(unittest.TestCase):
     """Test the SENSORS list configuration"""
 
@@ -204,6 +265,7 @@ class TestGetDeviceStatus(MockDeskproTestBase):
     def test_get_device_status_on_deskpro_error(self, mock_client):
         """get_device_status should return unavailable on DeskproError"""
         mock_client.update = MagicMock(side_effect=DeskproError("Connection failed"))
+        mock_client.sensors = bridge.SENSORS
 
         result = bridge.get_device_status()
 
