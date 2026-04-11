@@ -130,7 +130,7 @@ class Deskpro:
                 ret[sensor.key] = None
             return ret
 
-        def Parse(self) -> dict[str, str]:
+        def Parse(self) -> dict[str, Optional[str]]:
             """
             Assuming we've already pulled down the XML,
             this triggers parsing of it.
@@ -178,7 +178,7 @@ class Deskpro:
             return sensors
 
         @classmethod
-        def ToStatus(cls, xml: str) -> dict[str, str]:
+        def ToStatus(cls, xml: str) -> dict[str, Optional[str]]:
             """
             Convenient wrapper for turning the XML data into
             a dictionary.

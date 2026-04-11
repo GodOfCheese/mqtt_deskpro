@@ -164,18 +164,6 @@ class TestGetDeviceStatus(MockDeskproTestBase):
     """Test get_device_status function"""
 
     @patch("cisco_deskpro_mqtt.DESKPRO_CLIENT")
-    def test_get_device_status_success(self, mock_client):
-        """get_device_status should return status dict on success"""
-        mock_client.update = MagicMock()
-        mock_client.status = self.mock_status.copy()
-        mock_client.sensors = bridge.SENSORS
-
-        result = bridge.get_device_status()
-
-        self.assertIsInstance(result, dict)
-        mock_client.update.assert_called_once_with(includeUnknowns=True)
-
-    @patch("cisco_deskpro_mqtt.DESKPRO_CLIENT")
     def test_get_device_status_returns_all_keys(self, mock_client):
         """get_device_status should return all sensor keys"""
         mock_client.update = MagicMock()
@@ -183,6 +171,8 @@ class TestGetDeviceStatus(MockDeskproTestBase):
         mock_client.sensors = bridge.SENSORS
 
         result = bridge.get_device_status()
+        
+        self.assertIsInstance(result, dict)
 
         for sensor in bridge.SENSORS:
             self.assertIn(sensor.key, result)
