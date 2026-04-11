@@ -14,6 +14,8 @@ services:
       # on my deskpro, this is about 250 different sensors that update twice a second (some of which never change, like the hardware ID).
       # There may be useful data here, but I recommend testing this with a different DEVICE_NAME and DEVICE_ID than the default,
       # so you won't be left with clutter if/when you switch back.
+      DESKPRO_IGNORE_SENSORS: "Time System Time,System Unit Uptime" 
+      # even if you turn on DESKPRO_INCLUDE_UNKNOWNS, you probably don't want these sensors.
       POLL_INTERVAL_MS: "450" # you want this very small to get near real-time updates, but be mindful of the load on the Deskpro.  
       # 1 second seems fine in my testing, but just in case...
 

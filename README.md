@@ -48,6 +48,8 @@ You may want to run this thing directly as a PoC, or for debugging, or whatever.
 * DESKPRO_USER: the name of the low-privilege user you created up above
 * DESKPRO_PASS: that user's password
 * DESKPRO_VERIFY_SSL: (optional) defaults to `false` because the Deskpro does.  If you have a TLS cert you want to verify rather than spraying your username at the above IP address, set this to `true`.  Recommended.
+* DESKPRO_INCLUDE_UNKNOWNS: includes most other status data reported by the Deskpro.  Default: don't.  See [Unknown Sensors](#unknown-sensors) below for more info
+* DESKPRO_IGNORE_SENSORS: some sensors are noisy and provide no conceivable value.  I recommend leaving this `"Time System Time, System Unit Uptime"` to ignore these two values, which will always be different for obvious reasons.  If you want NOT to create sensors for other values, just add them here, comma-separated.
 * MQTT_HOST: the hostname for your MQTT service
 * MQTT_PORT: (optional) its port number.  Default 1883.
 * MQTT_USER: (optional) username to connect to MQTT with, if required
@@ -56,6 +58,18 @@ You may want to run this thing directly as a PoC, or for debugging, or whatever.
 * POLL_INTERVAL: (optional) how often to pound the deskpro, in seconds.  Defaults to 10.  I recommend turning this to 1 if you're using presence detection AFTER you've determined that it works.
 * DEVICE_NAME: (optional) if you have more than one Deskpro, you might want to change this to something other than `Cisco Desk Pro`
 * DEVICE_ID: (optional) the device_id for home assistant detection.  Defaults to `cisco_deskpro_1`, but if you have more than one, you'll probably need to change this.
+
+#### Unknown Sensors
+The deskpro has hundreds of configuration widgets that it reports on.  By default, I've only included the ones I thought would be most useful, but I don't know how you use yours or how I might use mine in the future.
+
+In my experience, most of these sensors don't change in value.  For example, I don't use bluetooth with mine, so `Bluetooth Streaming Duration` is initialized to zero and stays that way forever.  But YMMV.
+
+If you want to play with this and maybe use it in automation, set:
+1. `DESKPRO_INCLUDE_UNKNOWNS` to `true`
+1. I recommend changing your `DEVICE_ID` to something else like `test_deskpro`, so that the 200+ sensors that HomeAssistant discovers will not be attached to the "production" Deskpro forever if you choose not to use them. It aids cleanup.
+
+
+
 
 ### Run it!
 After setting the environment variables (above):
@@ -72,4 +86,5 @@ I recommend running this in a docker container.
 Watch it go.
 
 Enjoy!
+
 
